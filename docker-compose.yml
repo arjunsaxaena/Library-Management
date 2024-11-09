@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    networks:
+      - my_network
+    ports:
+      - "5432:5432"
+
+  adminer:
+    image: adminer:latest
+    networks:
+      - my_network
+    ports:
+      - "8080:8080"
+
+  migrate:
+    image: migrate/migrate
+    volumes:
+      - ./migrations:/migrations
+    networks:
+      - my_network
+    entrypoint: [
+      "sh", "-c",
+      "wait-for-it postgres:5432 -- migrate -source file:///migrations -database postgres://postgres:secret@postgres/postgres?sslmode=disable up"    
+    ]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - my_network
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+
+networks:
+  my_network:
+    driver: bridge

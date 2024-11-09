@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Return Book</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        label, input { display: block; margin: 10px auto; }
+        button { padding: 10px 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Return Book</h1>
+    <form action="/return-book" method="POST">
+        <label for="book_id">Book ID:</label>
+        <input type="text" id="book_id" name="book_id" required>
+        
+        <button type="submit">Return Book</button>
+    </form>
+    <p><a href="/">Back to Home</a></p>
+</body>
+</html>

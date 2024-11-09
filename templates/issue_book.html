@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Book</title>
+    <link rel="stylesheet" href="/static/styles.css"> <!-- Link to any CSS file if you have -->
+</head>
+<body>
+    <h1>Issue Book to User</h1>
+    
+    <form action="/issue-book" method="POST">
+        <label for="book_id">Book ID:</label>
+        <input type="text" id="book_id" name="book_id" required>
+        
+        <label for="user_id">User ID:</label>
+        <input type="text" id="user_id" name="user_id" required>
+        
+        <button type="submit">Issue Book</button>
+    </form>    
+    
+    <p><a href="/">Back to Home</a></p>
+</body>
+</html>
