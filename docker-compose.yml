@@ -23,10 +23,13 @@ services:
       - ./migrations:/migrations
     networks:
       - my_network
+    depends_on:  
+      - postgres
     entrypoint: [
       "sh", "-c",
-      "wait-for-it postgres:5432 -- migrate -source file:///migrations -database postgres://postgres:secret@postgres/postgres?sslmode=disable up"    
+      "sleep 10 && migrate -source file:///migrations -database postgres://postgres:secret@postgres/postgres?sslmode=disable up"
     ]
+
 
   app:
     build:

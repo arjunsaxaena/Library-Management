@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Library Management",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/main.go", 
+            "env": {
+                "PORT": "3000", 
+                "POSTGRES_USER": "postgres",
+                "POSTGRES_PASSWORD": "secret",
+                "POSTGRES_DB": "postgres",
+                "POSTGRES_HOST": "localhost",
+                "POSTGRES_PORT": "5432"
+            },
+            "args": [],
+            "showLog": true
+        }
+    ]
+}
