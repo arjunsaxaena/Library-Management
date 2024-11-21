@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	db, err := sqlx.Connect("postgres", "postgres://postgres:secret@postgres:5432/postgres?sslmode=disable")
+	db, err := sqlx.Connect("postgres", "postgres://postgres:secret@localhost:5432/postgres?sslmode=disable") // go run cmd/main.go
 	if err != nil {
 		log.Fatalln("Failed to connect to database:", err)
 	}

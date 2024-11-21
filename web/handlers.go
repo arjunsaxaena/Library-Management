@@ -46,16 +46,21 @@ func (h *Handler) IssueBook(c *gin.Context) {
 	}
 
 	existingIssuedBook, err := h.IssuedBookStore.GetIssuedBookByBookID(request.BookID)
-	if err == nil && existingIssuedBook.UserID == request.UserID && existingIssuedBook.ReturnDate == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "This book is already issued to the user and cannot be reissued."})
+	if err == nil && existingIssuedBook.ReturnDate == nil {
+		if existingIssuedBook.UserID == request.UserID {
+			c.JSON(http.StatusConflict, gin.H{"error": "This book is already issued to you."})
+		} else {
+			c.JSON(http.StatusConflict, gin.H{"error": "This book is currently issued to another user."})
+		}
 		return
 	}
 
 	issuedBook := model.IssuedBook{
-		ID:        uuid.New(),
-		BookID:    request.BookID,
-		UserID:    request.UserID,
-		IssueDate: time.Now(),
+		ID:         uuid.New(),
+		BookID:     request.BookID,
+		UserID:     request.UserID,
+		IssueDate:  time.Now(),
+		ReturnDate: nil,
 	}
 
 	err = h.IssuedBookStore.CreateIssuedBook(&issuedBook)
@@ -361,21 +366,21 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	//existingUsers, err := h.UserStore.Users()
-	//if err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing users"})
-	//	return
-	//}
+	existingUsers, err := h.UserStore.Users()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing users"})
+		return
+	}
 
-	//for _, user := range existingUsers {
-	//	if user.Name == req.Name {
-	//		c.JSON(http.StatusConflict, gin.H{
-	//			"error":   "A user with the same name already exists",
-	//			"user_id": user.ID,
-	//		})
-	//		return
-	//	}
-	//}
+	for _, user := range existingUsers {
+		if user.Name == req.Name {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "A user with the same name already exists",
+				"user_id": user.ID,
+			})
+			return
+		}
+	}
 
 	newUUID := uuid.New()
 
@@ -447,21 +452,21 @@ func (h *Handler) CreateAuthor(c *gin.Context) {
 		return
 	}
 
-	//existingAuthors, err := h.AuthorStore.Authors()
-	//if err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing authors"})
-	//	return
-	//}
+	existingAuthors, err := h.AuthorStore.Authors()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing authors"})
+		return
+	}
 
-	//for _, author := range existingAuthors {
-	//	if author.Name == req.Name {
-	//		c.JSON(http.StatusConflict, gin.H{
-	//			"error":     "An author with the same name already exists",
-	//			"author_id": author.ID,
-	//		})
-	//		return
-	//	}
-	//}
+	for _, author := range existingAuthors {
+		if author.Name == req.Name {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":     "An author with the same name already exists",
+				"author_id": author.ID,
+			})
+			return
+		}
+	}
 
 	newAuthor := model.Author{
 		ID:   uuid.New(),

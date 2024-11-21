@@ -30,18 +30,6 @@ services:
       "sleep 10 && migrate -source file:///migrations -database postgres://postgres:secret@postgres/postgres?sslmode=disable up"
     ]
 
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    networks:
-      - my_network
-    depends_on:
-      - postgres
-    ports:
-      - "3000:3000"
-
 networks:
   my_network:
     driver: bridge

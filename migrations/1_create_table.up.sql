@@ -26,8 +26,8 @@ CREATE TABLE issued_books (
     book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     issue_date TIMESTAMP NOT NULL DEFAULT NOW(),
-    return_date TIMESTAMP
-    CHECK (issue_date <= COALESCE(return_date, NOW()))  -- Ensures return_date is not before issue_date
+    return_date TIMESTAMP,
+    CHECK (return_date IS NULL OR issue_date <= return_date) -- Ensures return_date is not before issue_date
 );
 
 -- Unique index on (book_id) where return_date is NULL to enforce one active issue per book at a time
