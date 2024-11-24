@@ -56,6 +56,8 @@ func main() {
 	router.DELETE("/authors/:id", handler.DeleteAuthor)
 
 	// Issued Book routes
+	router.GET("books/issue/:id", handler.GetIssuedBook)
+	router.GET("books/issue", handler.GetIssuedBooks)
 	router.POST("books/issue", handler.IssueBook)
 	router.POST("books/return", handler.ReturnBook)
 

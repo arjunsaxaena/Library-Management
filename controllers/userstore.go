@@ -41,8 +41,8 @@ func (s *DBUserStore) CreateUser(u *model.User) error {
 	sb := sqlbuilder.NewInsertBuilder()
 	sb.SetFlavor(sqlbuilder.PostgreSQL)
 	sb.InsertInto("users").
-		Cols("id", "name").
-		Values(u.ID, u.Name)
+		Cols("id", "name", "standard").
+		Values(u.ID, u.Name, u.Standard)
 
 	query, args := sb.Build()
 	_, err := s.db.Exec(query, args...)
@@ -53,7 +53,10 @@ func (s *DBUserStore) UpdateUser(u *model.User) error {
 	sb := sqlbuilder.NewUpdateBuilder()
 	sb.SetFlavor(sqlbuilder.PostgreSQL)
 	sb.Update("users").
-		Set(sb.Assign("name", u.Name)).
+		Set(
+			sb.Assign("name", u.Name),
+			sb.Assign("standard", u.Standard),
+		).
 		Where(sb.Equal("id", u.ID))
 
 	query, args := sb.Build()

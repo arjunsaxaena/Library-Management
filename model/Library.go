@@ -12,6 +12,8 @@ type Book struct {
 	AuthorID     uuid.UUID `db:"author_id"`
 	LocationID   uuid.UUID `db:"location_id"`
 	IsCheckedOut bool      `db:"is_checked_out"`
+	BookType     string    `db:"book_type"`
+	CreatedAt    time.Time `db:"created_at"`
 }
 
 type Author struct {
@@ -25,8 +27,9 @@ type Location struct {
 }
 
 type User struct {
-	ID   uuid.UUID `db:"id"`
-	Name string    `db:"name"`
+	ID       uuid.UUID `db:"id"`
+	Name     string    `db:"name"`
+	Standard string    `db:"standard"`
 }
 
 type IssuedBook struct {
@@ -35,6 +38,7 @@ type IssuedBook struct {
 	UserID     uuid.UUID  `db:"user_id"`
 	IssueDate  time.Time  `db:"issue_date"`
 	ReturnDate *time.Time `db:"return_date"`
+	LateFees   float64    `db:"late_fees"`
 }
 
 type BookStore interface {
@@ -71,7 +75,7 @@ type UserStore interface {
 
 type IssuedBookStore interface {
 	CreateIssuedBook(issuedBook *IssuedBook) error
-	ReturnBook(bookID uuid.UUID) error
+	ReturnBook(bookID uuid.UUID) (float64, error)
 	GetIssuedBookByBookID(bookID uuid.UUID) (IssuedBook, error)
 	IssuedBooks() ([]IssuedBook, error)
 }

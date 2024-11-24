@@ -85,37 +85,48 @@ func (h *Handler) ReturnBook(c *gin.Context) {
 
 	var request ReturnBookRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request payload",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	issuedBook, err := h.IssuedBookStore.GetIssuedBookByBookID(request.BookID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "This book is not currently issued."})
+			c.JSON(http.StatusNotFound, gin.H{"error": "The book is not currently issued."})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving issued book record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve issued book record."})
 		return
 	}
 
 	if issuedBook.UserID != request.UserID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "This book was not issued to the user and cannot be returned."})
+		c.JSON(http.StatusForbidden, gin.H{"error": "The book was not issued to the user and cannot be returned."})
 		return
 	}
 
 	if issuedBook.ReturnDate != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "This book has already been returned and cannot be returned again."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The book has already been returned."})
 		return
 	}
 
-	err = h.IssuedBookStore.ReturnBook(request.BookID)
+	lateFees, err := h.IssuedBookStore.ReturnBook(request.BookID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to return book: %s", err.Error())})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to process the book return.",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Book returned successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Book returned successfully.",
+		"book_id":   request.BookID,
+		"user_id":   request.UserID,
+		"late_fees": lateFees,
+	})
 }
 
 // HELPER FUNCTIONS
@@ -161,6 +172,33 @@ func (h *Handler) getOrCreateLocation(name string) (*model.Location, error) {
 }
 
 // GET HANDLERS (BY ID OR ALL)
+
+func (h *Handler) GetIssuedBooks(c *gin.Context) {
+	issuedBooks, err := h.IssuedBookStore.IssuedBooks()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch issued books"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"issued_books": issuedBooks})
+}
+
+func (h *Handler) GetIssuedBook(c *gin.Context) {
+	bookIDParam := c.Param("id")
+	bookID, err := uuid.Parse(bookIDParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book ID"})
+		return
+	}
+
+	issuedBook, err := h.IssuedBookStore.GetIssuedBookByBookID(bookID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Issued book not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"issued_book": issuedBook})
+}
 
 func (h *Handler) GetBooks(c *gin.Context) {
 	books, err := h.BookStore.Books()
@@ -289,6 +327,7 @@ func (h *Handler) CreateBook(c *gin.Context) {
 		Title        string `json:"title"`
 		AuthorName   string `json:"author_name"`
 		LocationName string `json:"location_name"`
+		BookType     string `json:"book_type" binding:"required"`
 	}
 
 	var req CreateBookRequest
@@ -343,6 +382,8 @@ func (h *Handler) CreateBook(c *gin.Context) {
 		AuthorID:     author.ID,
 		LocationID:   location.ID,
 		IsCheckedOut: false,
+		BookType:     req.BookType,
+		CreatedAt:    time.Now(),
 	}
 
 	if err := h.BookStore.CreateBook(&newBook); err != nil {
@@ -357,12 +398,13 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	fmt.Println("Received create user request")
 
 	type CreateUserRequest struct {
-		Name string `json:"name"`
+		Name     string `json:"name"`
+		Standard string `json:"standard" binding:"required"`
 	}
 
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
 		return
 	}
 
@@ -385,8 +427,9 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	newUUID := uuid.New()
 
 	newUser := model.User{
-		ID:   newUUID,
-		Name: req.Name,
+		ID:       newUUID,
+		Name:     req.Name,
+		Standard: req.Standard,
 	}
 
 	if err := h.UserStore.CreateUser(&newUser); err != nil {
