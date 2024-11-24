@@ -112,6 +112,8 @@ func (s *DBIssuedBookStore) ReturnBook(bookID uuid.UUID) (float64, error) {
 	return lateFees, nil
 }
 
+// Books by ID
+
 func (s *DBIssuedBookStore) GetIssuedBookByBookID(bookID uuid.UUID) (model.IssuedBook, error) {
 	var issuedBook model.IssuedBook
 	sb := sqlbuilder.NewSelectBuilder()
@@ -128,13 +130,14 @@ func (s *DBIssuedBookStore) GetIssuedBookByBookID(bookID uuid.UUID) (model.Issue
 			"END AS late_fees",
 	).
 		From("issued_books").
-		Where(sb.Equal("book_id", bookID)).
-		Where(sb.IsNull("return_date"))
+		Where(sb.Equal("book_id", bookID))
 
 	query, args := sb.Build()
 	err := s.db.Get(&issuedBook, query, args...)
 	return issuedBook, err
 }
+
+// Only book which are currently issued
 
 func (s *DBIssuedBookStore) IssuedBooks() ([]model.IssuedBook, error) {
 	var issuedBooks []model.IssuedBook
