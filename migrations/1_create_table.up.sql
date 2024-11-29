@@ -1,6 +1,31 @@
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL,
+    class TEXT NOT NULL
+);
+
 CREATE TABLE authors (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL
+);
+
+CREATE TABLE subjects (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    language TEXT NOT NULL, 
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE materials (
+    id UUID PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT, 
+    notes TEXT, 
+    type TEXT NOT NULL, 
+    link TEXT NOT NULL,
+    language TEXT NOT NULL,
+    subject_name TEXT NOT NULL REFERENCES subjects(name) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE locations (
@@ -8,20 +33,14 @@ CREATE TABLE locations (
     name TEXT NOT NULL
 );
 
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
-    standard TEXT NOT NULL
-);
-
 CREATE TABLE books (
     id UUID PRIMARY KEY,
     title TEXT NOT NULL,
     author_id UUID NOT NULL REFERENCES authors(id) ON DELETE CASCADE,
-    location_id UUID NOT NULL REFERENCES locations(id) ON DELETE SET NULL,
+    location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
     is_checked_out BOOLEAN DEFAULT FALSE,
-    book_type TEXT NOT NULL, 
-    created_at TIMESTAMP NOT NULL DEFAULT NOW() 
+    book_type TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE issued_books (
@@ -52,4 +71,3 @@ SELECT
             0
     END AS late_fees
 FROM issued_books;
-

@@ -17,15 +17,27 @@ type Handler struct {
 	LocationStore   model.LocationStore
 	UserStore       model.UserStore
 	IssuedBookStore model.IssuedBookStore
+	SubjectStore    model.SubjectStore
+	MaterialStore   model.MaterialStore
 }
 
-func NewHandler(bs model.BookStore, as model.AuthorStore, ls model.LocationStore, us model.UserStore, ibs model.IssuedBookStore) *Handler {
+func NewHandler(
+	bs model.BookStore,
+	as model.AuthorStore,
+	ls model.LocationStore,
+	us model.UserStore,
+	ibs model.IssuedBookStore,
+	ss model.SubjectStore,
+	ms model.MaterialStore,
+) *Handler {
 	return &Handler{
 		BookStore:       bs,
 		AuthorStore:     as,
 		LocationStore:   ls,
 		UserStore:       us,
 		IssuedBookStore: ibs,
+		SubjectStore:    ss,
+		MaterialStore:   ms,
 	}
 }
 
@@ -227,6 +239,95 @@ func (h *Handler) GetBook(c *gin.Context) {
 	c.JSON(http.StatusOK, book)
 }
 
+func (h *Handler) GetSubjects(c *gin.Context) {
+	subjects, err := h.SubjectStore.Subjects()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subjects"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"subjects": subjects})
+}
+
+func (h *Handler) GetSubject(c *gin.Context) {
+	idParam := c.Param("id")
+	subjectID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subject ID"})
+		return
+	}
+
+	subject, err := h.SubjectStore.Subject(subjectID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Subject not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"subject": subject})
+}
+
+func (h *Handler) GetSubjectByName(c *gin.Context) {
+	subjectName := c.Param("name")
+	subject, err := h.SubjectStore.SubjectByName(subjectName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Subject not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{" error": "Failed to retrieve subject"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"subject": subject})
+}
+
+func (h *Handler) GetMaterials(c *gin.Context) {
+	materials, err := h.MaterialStore.Materials()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch materials"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"materials": materials})
+}
+
+func (h *Handler) GetMaterial(c *gin.Context) {
+	idParam := c.Param("id")
+	materialID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material ID"})
+		return
+	}
+
+	material, err := h.MaterialStore.Material(materialID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Material not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"material": material})
+}
+
+func (h *Handler) GetMaterialsBySubject(c *gin.Context) {
+	subjectName := c.Param("subject_name")
+	materials, err := h.MaterialStore.GetMaterialsBySubject(subjectName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch materials by subject"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"materials": materials})
+}
+
+func (h *Handler) GetMaterialsByLanguage(c *gin.Context) {
+	language := c.Param("language")
+	materials, err := h.MaterialStore.GetMaterialsByLanguage(language)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch materials by language"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"materials": materials})
+}
+
 func (h *Handler) GetAuthors(c *gin.Context) {
 	authors, err := h.AuthorStore.Authors()
 	if err != nil {
@@ -394,12 +495,131 @@ func (h *Handler) CreateBook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Book created successfully", "book": newBook})
 }
 
+func (h *Handler) CreateSubject(c *gin.Context) {
+	type CreateSubjectRequest struct {
+		Name     string `json:"name" binding:"required"`
+		Language string `json:"language" binding:"required"`
+	}
+
+	var req CreateSubjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	existingSubjects, err := h.SubjectStore.Subjects()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing subjects"})
+		return
+	}
+
+	for _, subject := range existingSubjects {
+		if subject.Name == req.Name {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":      "A subject with the same name already exists",
+				"subject_id": subject.ID,
+			})
+			return
+		}
+	}
+
+	newSubject := model.Subject{
+		ID:       uuid.New(),
+		Name:     req.Name,
+		Language: req.Language,
+	}
+
+	if err := h.SubjectStore.CreateSubject(&newSubject); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create subject"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Subject created successfully", "subject": newSubject})
+}
+
+func (h *Handler) CreateMaterial(c *gin.Context) {
+	type CreateMaterialRequest struct {
+		Title       string `json:"title" binding:"required"`
+		Description string `json:"description"`
+		Notes       string `json:"notes"`
+		Type        string `json:"type" binding:"required"`
+		Link        string `json:"link"`
+		Language    string `json:"language" binding:"required"`
+		SubjectName string `json:"subject_name" binding:"required"`
+	}
+
+	var req CreateMaterialRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		return
+	}
+
+	existingMaterials, err := h.MaterialStore.Materials()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing materials"})
+		return
+	}
+
+	for _, material := range existingMaterials {
+		if material.Title == req.Title {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":       "A material with the same title already exists",
+				"material_id": material.ID,
+			})
+			return
+		}
+	}
+
+	subject, err := h.SubjectStore.SubjectByName(req.SubjectName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing subjects"})
+		return
+	}
+
+	if subject.ID == uuid.Nil {
+		// Create a new subject
+		newSubject := model.Subject{
+			ID:        uuid.New(),
+			Name:      req.SubjectName,
+			Language:  req.Language,
+			CreatedAt: time.Now(),
+		}
+
+		if err := h.SubjectStore.CreateSubject(&newSubject); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create subject"})
+			return
+		}
+		req.SubjectName = newSubject.Name
+	} else {
+		req.SubjectName = subject.Name
+	}
+
+	newMaterial := model.Material{
+		ID:          uuid.New(),
+		Title:       req.Title,
+		Description: req.Description,
+		Notes:       req.Notes,
+		Type:        req.Type,
+		Link:        req.Link,
+		Language:    req.Language,
+		SubjectName: req.SubjectName,
+		CreatedAt:   time.Now(),
+	}
+
+	if err := h.MaterialStore.CreateMaterial(&newMaterial); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create material"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Material created successfully", "material": newMaterial})
+}
+
 func (h *Handler) CreateUser(c *gin.Context) {
 	fmt.Println("Received create user request")
 
 	type CreateUserRequest struct {
-		Name     string `json:"name"`
-		Standard string `json:"standard" binding:"required"`
+		Name  string `json:"name"`
+		Class string `json:"class" binding:"required"`
 	}
 
 	var req CreateUserRequest
@@ -427,9 +647,9 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	newUUID := uuid.New()
 
 	newUser := model.User{
-		ID:       newUUID,
-		Name:     req.Name,
-		Standard: req.Standard,
+		ID:    newUUID,
+		Name:  req.Name,
+		Class: req.Class,
 	}
 
 	if err := h.UserStore.CreateUser(&newUser); err != nil {
@@ -548,6 +768,80 @@ func (h *Handler) UpdateBook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Book updated successfully", "book": book})
+}
+
+func (h *Handler) UpdateSubject(c *gin.Context) {
+	idParam := c.Param("id")
+	subjectID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subject ID"})
+		return
+	}
+
+	var req struct {
+		Name     string `json:"name" binding:"required"`
+		Language string `json:"language" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	subject := model.Subject{
+		ID:       subjectID,
+		Name:     req.Name,
+		Language: req.Language,
+	}
+
+	if err := h.SubjectStore.UpdateSubject(&subject); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update subject"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Subject updated successfully", "subject": subject})
+}
+
+func (h *Handler) UpdateMaterial(c *gin.Context) {
+	idParam := c.Param("id")
+	materialID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material ID"})
+		return
+	}
+
+	var req struct {
+		Title       string `json:"title" binding:"required"`
+		Description string `json:"description"`
+		Notes       string `json:"notes"`
+		Type        string `json:"type" binding:"required"`
+		Link        string `json:"link"`
+		Language    string `json:"language" binding:"required"`
+		SubjectName string `json:"subject_name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	material := model.Material{
+		ID:          materialID,
+		Title:       req.Title,
+		Description: req.Description,
+		Notes:       req.Notes,
+		Type:        req.Type,
+		Link:        req.Link,
+		Language:    req.Language,
+		SubjectName: req.SubjectName,
+		CreatedAt:   time.Now(), // Assuming CreatedAt is updated in the handler
+	}
+
+	if err := h.MaterialStore.UpdateMaterial(&material); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update material"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Material updated successfully", "material": material})
 }
 
 func (h *Handler) UpdateUser(c *gin.Context) {
@@ -686,4 +980,36 @@ func (h *Handler) DeleteAuthor(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Author deleted successfully"})
+}
+
+func (h *Handler) DeleteMaterial(c *gin.Context) {
+	idParam := c.Param("id")
+	materialID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid material ID"})
+		return
+	}
+
+	if err := h.MaterialStore.DeleteMaterial(materialID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete material"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Material deleted successfully"})
+}
+
+func (h *Handler) DeleteSubject(c *gin.Context) {
+	idParam := c.Param("id")
+	subjectID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid subject ID"})
+		return
+	}
+
+	if err := h.SubjectStore.DeleteSubject(subjectID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete subject"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Subject deleted successfully"})
 }

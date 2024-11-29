@@ -22,8 +22,10 @@ func main() {
 	locationStore := controllers.NewDBLocationStore(db)
 	userStore := controllers.NewDBUserStore(db)
 	issuedBookStore := controllers.NewDBIssuedBookStore(db)
+	subjectStore := controllers.NewDBSubjectStore(db)
+	materialStore := controllers.NewDBMaterialStore(db)
 
-	handler := web.NewHandler(bookStore, authorStore, locationStore, userStore, issuedBookStore)
+	handler := web.NewHandler(bookStore, authorStore, locationStore, userStore, issuedBookStore, subjectStore, materialStore)
 
 	router := gin.Default()
 
@@ -60,6 +62,23 @@ func main() {
 	router.GET("books/issue", handler.GetIssuedBooks)
 	router.POST("books/issue", handler.IssueBook)
 	router.POST("books/return", handler.ReturnBook)
+
+	// Material routes
+	router.GET("/materials", handler.GetMaterials)
+	router.GET("/materials/:id", handler.GetMaterial)
+	router.POST("/materials", handler.CreateMaterial)
+	router.GET("/materials/subject/:subject_name", handler.GetMaterialsBySubject)
+	router.GET("/materials/language/:language", handler.GetMaterialsByLanguage)
+	router.PUT("/materials/:id", handler.UpdateMaterial)
+	router.DELETE("/materials/:id", handler.DeleteMaterial)
+
+	// Subject routes
+	router.GET("/subjects", handler.GetSubjects)
+	router.GET("/subjects/:id", handler.GetSubject)
+	router.POST("/subjects", handler.CreateSubject)
+	router.GET("/subjects/name/:name", handler.GetSubjectByName)
+	router.PUT("/subjects/:id", handler.UpdateSubject)
+	router.DELETE("/subjects/:id", handler.DeleteSubject)
 
 	// Health check route
 	router.GET("/health", func(c *gin.Context) {
